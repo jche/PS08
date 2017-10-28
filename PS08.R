@@ -1,63 +1,55 @@
 library(tidyverse)
 library(caret)
-
-# Package for easy timing in R
 library(tictoc)
-
-
-
-# Demo of timer function --------------------------------------------------
-# Run the next 5 lines at once
-tic()
-Sys.sleep(3)
-timer_info <- toc()
-runtime <- timer_info$toc - timer_info$tic
-runtime
-
-
 
 # Get data ----------------------------------------------------------------
 # Accelerometer Biometric Competition Kaggle competition data
 # https://www.kaggle.com/c/accelerometer-biometric-competition/data
-train <- read_csv("~/Downloads/train.csv")
-
-# YOOGE!
-dim(train)
-
+train <- read_csv("~/PS08/train.csv")
 
 
 # knn modeling ------------------------------------------------------------
 model_formula <- as.formula(Device ~ X + Y + Z)
 
 # Values to use:
-n_values <- c(10, 20, 30)
-k_values <- c(2, 3, 4)
-
-runtime_dataframe <- expand.grid(n_values, k_values) %>%
-  as_tibble() %>%
-  rename(n=Var1, k=Var2) %>%
-  mutate(runtime = n*k)
-runtime_dataframe
-
-
-
+n_values <- seq(from=100000, to=5000000, by=100000)
+k_values <- c(1, seq(from=25, to=200, by=25))
 
 # Time knn here -----------------------------------------------------------
-
-
-
-
-# Plot your results ---------------------------------------------------------
-# Think of creative ways to improve this barebones plot. Note: you don't have to
-# necessarily use geom_point
-runtime_plot <- ggplot(runtime_dataframe, aes(x=n, y=k, col=runtime)) +
-  geom_point()
-
-runtime_plot
-ggsave(filename="firstname_lastname.png", width=16, height = 9)
-
-
-
+# Set seed
+set.seed(495)
+# Initialize empty dataframe
+df <- data.frame(
+  n = numeric(),
+  k = numeric(),
+  time = numeric()
+)
+count = 1   # data frame row counter
+# Time training time for all values in n_values, k_values
+for (n in n_values){
+  train_samp <- sample_n(train, n)
+  for (k in k_values){
+    tic()
+    model_knn <- caret::knn3(model_formula, data=train_samp, k = k)
+    timer_info <- toc()
+    time <- timer_info$toc - timer_info$tic
+    
+    tuple <- c(n, k, time)
+    df[count,] <- tuple
+    count <- count + 1
+  }
+}
+# Plot results
+(runtime_plot <- ggplot(df, aes(x=n, y=time, col=k, group=k)) +
+  geom_line() +
+  scale_colour_gradientn(colors=c("blue", "orange")) +
+  labs(
+    title="Training time of kNN with different k and training set sizes",
+    x="Number of training observations",
+    y="Time to train model (seconds)",
+    color="Value of k"
+  ))
+ggsave(filename="jonathan_che.png", width=16, height = 9)
 
 # Runtime complexity ------------------------------------------------------
 # Can you write out the rough Big-O runtime algorithmic complexity as a function
